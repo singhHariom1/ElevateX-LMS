@@ -1,12 +1,13 @@
 import { createApi, fetchBaseQuery } from "@reduxjs/toolkit/query/react";
+import { API_BASE_URL, baseQueryConfig } from "./apiConfig";
 
-const COURSE_PURCHASE_API = "http://localhost:8080/api/v1/purchase";
+const COURSE_PURCHASE_API = `${API_BASE_URL}/api/v1/purchase`;
 
 export const purchaseApi = createApi({
   reducerPath: "purchaseApi",
   baseQuery: fetchBaseQuery({
     baseUrl: COURSE_PURCHASE_API,
-    credentials: "include",
+    ...baseQueryConfig
   }),
   endpoints: (builder) => ({
     createCheckoutSession: builder.mutation({
