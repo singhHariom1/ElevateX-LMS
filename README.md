@@ -140,6 +140,6 @@ VITE_API_URL=http://localhost:3000
 
 This project is licensed under the ISC License.
 
-## 👥 Authors
+## 👥 Author
 
 Hariom Singh 
