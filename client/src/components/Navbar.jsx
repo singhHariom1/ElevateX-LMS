@@ -277,19 +277,6 @@ const MobileNavbar = ({ user, handleAuthAction }) => {
             </>
           )}
         </div>
-        {user?.role === "instructor" && (
-          <SheetFooter className="mt-auto">
-            <SheetClose asChild>
-              <Button
-                type="submit"
-                onClick={() => navigate("/admin/dashboard")}
-                className="w-full bg-blue-600 hover:bg-blue-700 dark:bg-blue-500 dark:hover:bg-blue-600"
-              >
-                Dashboard
-              </Button>
-            </SheetClose>
-          </SheetFooter>
-        )}
       </SheetContent>
     </Sheet>
   );
