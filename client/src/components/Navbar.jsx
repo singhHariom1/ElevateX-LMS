@@ -165,12 +165,14 @@ const Navbar = () => {
             <Rocket className="text-blue-600 dark:text-blue-400" size={"24"} />
             <div className="absolute -bottom-1 -right-1 w-2 h-2 bg-indigo-500 dark:bg-indigo-400 rounded-full"></div>
           </div>
-          <motion.h1
-            whileHover={{ scale: 1.05 }}
-            className="font-extrabold text-2xl bg-gradient-to-r from-blue-600 to-indigo-600 dark:from-blue-400 dark:to-indigo-400 bg-clip-text text-transparent"
-          >
-            ElevateX
-          </motion.h1>
+          <Link to="/">
+            <motion.h1
+              whileHover={{ scale: 1.05 }}
+              className="font-extrabold text-2xl bg-gradient-to-r from-blue-600 to-indigo-600 dark:from-blue-400 dark:to-indigo-400 bg-clip-text text-transparent"
+            >
+              ElevateX
+            </motion.h1>
+          </Link>
         </motion.div>
         <MobileNavbar user={user} handleAuthAction={handleAuthAction} />
       </div>
@@ -182,6 +184,18 @@ export default Navbar;
 
 const MobileNavbar = ({ user, handleAuthAction }) => {
   const navigate = useNavigate();
+  const [logoutUser, { isSuccess, data }] = useLogoutUserMutation();
+
+  const logoutHandler = async () => {
+    await logoutUser();
+  };
+
+  useEffect(() => {
+    if (isSuccess) {
+      toast.success(data?.message || "User log out.");
+      navigate("/login");
+    }
+  }, [isSuccess]);
 
   return (
     <Sheet>
@@ -240,7 +254,7 @@ const MobileNavbar = ({ user, handleAuthAction }) => {
               <Button
                 variant="destructive"
                 className="w-full mt-4"
-                onClick={() => navigate("/login")}
+                onClick={logoutHandler}
               >
                 Log out
               </Button>
