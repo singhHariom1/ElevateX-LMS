@@ -231,25 +231,31 @@ const MobileNavbar = ({ user, handleAuthAction }) => {
         <div className="flex flex-col gap-4 mt-8">
           {user ? (
             <>
-              <Link
-                to="my-learning"
-                className="text-lg font-medium hover:text-blue-600 dark:hover:text-blue-400"
-              >
-                My learning
-              </Link>
-              <Link
-                to="profile"
-                className="text-lg font-medium hover:text-blue-600 dark:hover:text-blue-400"
-              >
-                Edit Profile
-              </Link>
-              {user?.role === "instructor" && (
+              <SheetClose asChild>
                 <Link
-                  to="/admin/dashboard"
+                  to="my-learning"
                   className="text-lg font-medium hover:text-blue-600 dark:hover:text-blue-400"
                 >
-                  Dashboard
+                  My learning
                 </Link>
+              </SheetClose>
+              <SheetClose asChild>
+                <Link
+                  to="profile"
+                  className="text-lg font-medium hover:text-blue-600 dark:hover:text-blue-400"
+                >
+                  Edit Profile
+                </Link>
+              </SheetClose>
+              {user?.role === "instructor" && (
+                <SheetClose asChild>
+                  <Link
+                    to="/admin/dashboard"
+                    className="text-lg font-medium hover:text-blue-600 dark:hover:text-blue-400"
+                  >
+                    Dashboard
+                  </Link>
+                </SheetClose>
               )}
               <Button
                 variant="destructive"
@@ -261,19 +267,23 @@ const MobileNavbar = ({ user, handleAuthAction }) => {
             </>
           ) : (
             <>
-              <Button
-                variant="outline"
-                onClick={() => handleAuthAction("login")}
-                className="w-full bg-white hover:bg-blue-50 dark:bg-transparent dark:hover:bg-blue-900/20 border-blue-200 dark:border-blue-800 text-blue-600 dark:text-blue-400"
-              >
-                Login
-              </Button>
-              <Button
-                onClick={() => handleAuthAction("signup")}
-                className="w-full bg-blue-600 hover:bg-blue-700 dark:bg-blue-500 dark:hover:bg-blue-600 text-white border-2 border-transparent"
-              >
-                Signup
-              </Button>
+              <SheetClose asChild>
+                <Button
+                  variant="outline"
+                  onClick={() => handleAuthAction("login")}
+                  className="w-full bg-white hover:bg-blue-50 dark:bg-transparent dark:hover:bg-blue-900/20 border-blue-200 dark:border-blue-800 text-blue-600 dark:text-blue-400"
+                >
+                  Login
+                </Button>
+              </SheetClose>
+              <SheetClose asChild>
+                <Button
+                  onClick={() => handleAuthAction("signup")}
+                  className="w-full bg-blue-600 hover:bg-blue-700 dark:bg-blue-500 dark:hover:bg-blue-600 text-white border-2 border-transparent"
+                >
+                  Signup
+                </Button>
+              </SheetClose>
             </>
           )}
         </div>
