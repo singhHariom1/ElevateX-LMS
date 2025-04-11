@@ -7,6 +7,16 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+  DialogClose,
+} from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import {
@@ -22,6 +32,7 @@ import {
   useEditCourseMutation,
   useGetCourseByIdQuery,
   usePublishCourseMutation,
+  useDeleteCourseMutation,
 } from "@/features/api/courseApi";
 import { Loader2 } from "lucide-react";
 import React, { useEffect, useState } from "react";
@@ -70,6 +81,8 @@ const CourseTab = () => {
   const [editCourse, { data, isLoading, isSuccess, error }] =
     useEditCourseMutation();
 
+  const [deleteCourse, { isLoading: isDeleting }] = useDeleteCourseMutation();
+
   const changeEventHandler = (e) => {
     const { name, value } = e.target;
     setInput({ ...input, [name]: value });
@@ -117,6 +130,18 @@ const CourseTab = () => {
     }
   };
 
+  const handleDeleteCourse = async () => {
+    try {
+      const response = await deleteCourse(courseId).unwrap();
+      if (response) {
+        toast.success("Course deleted successfully");
+        navigate("/admin/course");
+      }
+    } catch (error) {
+      toast.error(error?.data?.message || "Failed to delete course");
+    }
+  };
+
   useEffect(() => {
     if (isSuccess) {
       toast.success(data.message || "Course update.");
@@ -147,9 +172,39 @@ const CourseTab = () => {
               )
             }
           >
-            {courseByIdData?.course.isPublished ? "Unpublished" : "Publish"}
+            {courseByIdData?.course.isPublished ? "Unpublish" : "Publish"}
           </Button>
-          <Button>Remove Course</Button>
+          <Dialog>
+            <DialogTrigger asChild>
+              <Button variant="destructive" disabled={isDeleting}>
+                {isDeleting ? (
+                  <>
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                    Deleting...
+                  </>
+                ) : (
+                  "Remove Course"
+                )}
+              </Button>
+            </DialogTrigger>
+            <DialogContent>
+              <DialogHeader>
+                <DialogTitle>Are you sure?</DialogTitle>
+                <DialogDescription>
+                  This action cannot be undone. This will permanently delete the
+                  course and all its associated lectures.
+                </DialogDescription>
+              </DialogHeader>
+              <DialogFooter>
+                <DialogClose asChild>
+                  <Button variant="outline">Cancel</Button>
+                </DialogClose>
+                <Button variant="destructive" onClick={handleDeleteCourse}>
+                  Delete Course
+                </Button>
+              </DialogFooter>
+            </DialogContent>
+          </Dialog>
         </div>
       </CardHeader>
       <CardContent>
