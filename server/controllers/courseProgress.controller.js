@@ -1,21 +1,34 @@
 import { CourseProgress } from "../models/courseProgress.js";
 import { Course } from "../models/course.model.js";
+import mongoose from "mongoose";
 
 export const getCourseProgress = async (req, res) => {
   try {
     const { courseId } = req.params;
     const userId = req.id;
 
+    // Validate ObjectId format
+    if (
+      !mongoose.Types.ObjectId.isValid(courseId) ||
+      !mongoose.Types.ObjectId.isValid(userId)
+    ) {
+      return res.status(400).json({
+        success: false,
+        message: "Invalid course or user ID format",
+      });
+    }
+
     // step-1 fetch the user course progress
     let courseProgress = await CourseProgress.findOne({
-      courseId,
-      userId,
+      courseId: new mongoose.Types.ObjectId(courseId),
+      userId: new mongoose.Types.ObjectId(userId),
     }).populate("courseId");
 
     const courseDetails = await Course.findById(courseId).populate("lectures");
 
     if (!courseDetails) {
       return res.status(404).json({
+        success: false,
         message: "Course not found",
       });
     }
@@ -23,6 +36,7 @@ export const getCourseProgress = async (req, res) => {
     // Step-2 If no progress found, return course details with an empty progress
     if (!courseProgress) {
       return res.status(200).json({
+        success: true,
         data: {
           courseDetails,
           progress: [],
@@ -33,6 +47,7 @@ export const getCourseProgress = async (req, res) => {
 
     // Step-3 Return the user's course progress alog with course details
     return res.status(200).json({
+      success: true,
       data: {
         courseDetails,
         progress: courseProgress.lectureProgress,
@@ -40,7 +55,11 @@ export const getCourseProgress = async (req, res) => {
       },
     });
   } catch (error) {
-    console.log(error);
+    console.error("Error getting course progress:", error);
+    return res.status(500).json({
+      success: false,
+      message: "Failed to get course progress",
+    });
   }
 };
 
@@ -49,14 +68,33 @@ export const updateLectureProgress = async (req, res) => {
     const { courseId, lectureId } = req.params;
     const userId = req.id;
 
+    // Validate ObjectId format
+    if (
+      !mongoose.Types.ObjectId.isValid(courseId) ||
+      !mongoose.Types.ObjectId.isValid(lectureId) ||
+      !mongoose.Types.ObjectId.isValid(userId)
+    ) {
+      return res.status(400).json({
+        success: false,
+        message: "Invalid course, lecture or user ID format",
+      });
+    }
+
+    const courseIdObj = new mongoose.Types.ObjectId(courseId);
+    const userIdObj = new mongoose.Types.ObjectId(userId);
+    const lectureIdObj = new mongoose.Types.ObjectId(lectureId);
+
     // fetch or create course progress
-    let courseProgress = await CourseProgress.findOne({ courseId, userId });
+    let courseProgress = await CourseProgress.findOne({
+      courseId: courseIdObj,
+      userId: userIdObj,
+    });
 
     if (!courseProgress) {
       // If no progress exist, create a new record
       courseProgress = new CourseProgress({
-        userId,
-        courseId,
+        userId: userIdObj,
+        courseId: courseIdObj,
         completed: false,
         lectureProgress: [],
       });
@@ -64,7 +102,7 @@ export const updateLectureProgress = async (req, res) => {
 
     // find the lecture progress in the course progress
     const lectureIndex = courseProgress.lectureProgress.findIndex(
-      (lecture) => lecture.lectureId === lectureId
+      (lecture) => lecture.lectureId.toString() === lectureId
     );
 
     if (lectureIndex !== -1) {
@@ -73,7 +111,7 @@ export const updateLectureProgress = async (req, res) => {
     } else {
       // Add new lecture progress
       courseProgress.lectureProgress.push({
-        lectureId,
+        lectureId: lectureIdObj,
         viewed: true,
       });
     }
@@ -85,16 +123,29 @@ export const updateLectureProgress = async (req, res) => {
 
     const course = await Course.findById(courseId);
 
-    if (course.lectures.length === lectureProgressLength)
+    if (!course) {
+      return res.status(404).json({
+        success: false,
+        message: "Course not found",
+      });
+    }
+
+    if (course.lectures.length === lectureProgressLength) {
       courseProgress.completed = true;
+    }
 
     await courseProgress.save();
 
     return res.status(200).json({
+      success: true,
       message: "Lecture progress updated successfully.",
     });
   } catch (error) {
-    console.log(error);
+    console.error("Error updating lecture progress:", error);
+    return res.status(500).json({
+      success: false,
+      message: "Failed to update lecture progress",
+    });
   }
 };
 
@@ -103,37 +154,91 @@ export const markAsCompleted = async (req, res) => {
     const { courseId } = req.params;
     const userId = req.id;
 
-    const courseProgress = await CourseProgress.findOne({ courseId, userId });
-    if (!courseProgress)
-      return res.status(404).json({ message: "Course progress not found" });
+    // Validate ObjectId format
+    if (
+      !mongoose.Types.ObjectId.isValid(courseId) ||
+      !mongoose.Types.ObjectId.isValid(userId)
+    ) {
+      return res.status(400).json({
+        success: false,
+        message: "Invalid course or user ID format",
+      });
+    }
 
-    courseProgress.lectureProgress.map(
+    const courseProgress = await CourseProgress.findOne({
+      courseId: new mongoose.Types.ObjectId(courseId),
+      userId: new mongoose.Types.ObjectId(userId),
+    });
+
+    if (!courseProgress) {
+      return res.status(404).json({
+        success: false,
+        message: "Course progress not found",
+      });
+    }
+
+    courseProgress.lectureProgress.forEach(
       (lectureProgress) => (lectureProgress.viewed = true)
     );
     courseProgress.completed = true;
     await courseProgress.save();
-    return res.status(200).json({ message: "Course marked as completed." });
+
+    return res.status(200).json({
+      success: true,
+      message: "Course marked as completed.",
+    });
   } catch (error) {
-    console.log(error);
+    console.error("Error marking course as completed:", error);
+    return res.status(500).json({
+      success: false,
+      message: "Failed to mark course as completed",
+    });
   }
 };
 
 export const markAsInCompleted = async (req, res) => {
-    try {
-      const { courseId } = req.params;
-      const userId = req.id;
-  
-      const courseProgress = await CourseProgress.findOne({ courseId, userId });
-      if (!courseProgress)
-        return res.status(404).json({ message: "Course progress not found" });
-  
-      courseProgress.lectureProgress.map(
-        (lectureProgress) => (lectureProgress.viewed = false)
-      );
-      courseProgress.completed = false;
-      await courseProgress.save();
-      return res.status(200).json({ message: "Course marked as incompleted." });
-    } catch (error) {
-      console.log(error);
+  try {
+    const { courseId } = req.params;
+    const userId = req.id;
+
+    // Validate ObjectId format
+    if (
+      !mongoose.Types.ObjectId.isValid(courseId) ||
+      !mongoose.Types.ObjectId.isValid(userId)
+    ) {
+      return res.status(400).json({
+        success: false,
+        message: "Invalid course or user ID format",
+      });
     }
-  };
+
+    const courseProgress = await CourseProgress.findOne({
+      courseId: new mongoose.Types.ObjectId(courseId),
+      userId: new mongoose.Types.ObjectId(userId),
+    });
+
+    if (!courseProgress) {
+      return res.status(404).json({
+        success: false,
+        message: "Course progress not found",
+      });
+    }
+
+    courseProgress.lectureProgress.forEach(
+      (lectureProgress) => (lectureProgress.viewed = false)
+    );
+    courseProgress.completed = false;
+    await courseProgress.save();
+
+    return res.status(200).json({
+      success: true,
+      message: "Course marked as incompleted.",
+    });
+  } catch (error) {
+    console.error("Error marking course as incompleted:", error);
+    return res.status(500).json({
+      success: false,
+      message: "Failed to mark course as incompleted",
+    });
+  }
+};

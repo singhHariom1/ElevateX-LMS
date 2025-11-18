@@ -29,10 +29,10 @@ const CourseDetail = () => {
   console.log(purchased);
 
   const handleContinueCourse = () => {
-    if(purchased){
-      navigate(`/course-progress/${courseId}`)
+    if (purchased) {
+      navigate(`/course-progress/${courseId}`);
     }
-  }
+  };
 
   return (
     <div className="space-y-5">
@@ -65,17 +65,29 @@ const CourseDetail = () => {
           <Card>
             <CardHeader>
               <CardTitle>Course Content</CardTitle>
-              <CardDescription>4 lectures</CardDescription>
+              <CardDescription>
+                {course.lectures?.length || 0} lectures
+              </CardDescription>
             </CardHeader>
             <CardContent className="space-y-3">
-              {course.lectures.map((lecture, idx) => (
-                <div key={idx} className="flex items-center gap-3 text-sm">
-                  <span>
-                    {true ? <PlayCircle size={14} /> : <Lock size={14} />}
-                  </span>
-                  <p>{lecture.lectureTitle}</p>
-                </div>
-              ))}
+              {course.lectures && course.lectures.length > 0 ? (
+                course.lectures.map((lecture, idx) => (
+                  <div key={idx} className="flex items-center gap-3 text-sm">
+                    <span>
+                      {purchased || lecture.isPreviewFree ? (
+                        <PlayCircle size={14} />
+                      ) : (
+                        <Lock size={14} />
+                      )}
+                    </span>
+                    <p>{lecture.lectureTitle}</p>
+                  </div>
+                ))
+              ) : (
+                <p className="text-sm text-gray-500">
+                  No lectures available yet
+                </p>
+              )}
             </CardContent>
           </Card>
         </div>
@@ -83,20 +95,32 @@ const CourseDetail = () => {
           <Card>
             <CardContent className="p-4 flex flex-col">
               <div className="w-full aspect-video mb-4">
-                <ReactPlayer
-                  width="100%"
-                  height={"100%"}
-                  url={course.lectures[0].videoUrl}
-                  controls={true}
-                />
+                {course.lectures && course.lectures.length > 0 ? (
+                  <ReactPlayer
+                    width="100%"
+                    height={"100%"}
+                    url={course.lectures[0].videoUrl}
+                    controls={true}
+                  />
+                ) : (
+                  <div className="flex items-center justify-center h-full bg-gray-100 rounded">
+                    <p className="text-gray-500">No lectures available</p>
+                  </div>
+                )}
               </div>
-              <h1>Lecture title</h1>
+              <h1>
+                {course.lectures && course.lectures.length > 0
+                  ? course.lectures[0].lectureTitle
+                  : "No lecture available"}
+              </h1>
               <Separator className="my-2" />
               <h1 className="text-lg md:text-xl font-semibold">Course Price</h1>
             </CardContent>
             <CardFooter className="flex justify-center p-4">
               {purchased ? (
-                <Button onClick={handleContinueCourse} className="w-full">Continue Course</Button>
+                <Button onClick={handleContinueCourse} className="w-full">
+                  Continue Course
+                </Button>
               ) : (
                 <BuyCourseButton courseId={courseId} />
               )}

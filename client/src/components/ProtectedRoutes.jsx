@@ -27,6 +27,9 @@ export const AdminRoute = ({children}) => {
         return <Navigate to="/login"/>
     }
 
+    // Note: User model only has "instructor" and "student" roles
+    // If you add an "admin" role in the future, update this check:
+    // if(user?.role !== "instructor" && user?.role !== "admin")
     if(user?.role !== "instructor"){
         return <Navigate to="/"/>
     }

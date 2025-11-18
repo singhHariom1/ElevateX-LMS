@@ -51,13 +51,30 @@ const CourseProgress = () => {
   const { courseDetails, progress, completed } = data.data;
   const { courseTitle } = courseDetails;
 
-  // initialze the first lecture is not exist
-  const initialLecture =
-    currentLecture || (courseDetails.lectures && courseDetails.lectures[0]);
-
+  // Helper function to check if a lecture is completed
   const isLectureCompleted = (lectureId) => {
+    if (!progress || !Array.isArray(progress)) return false;
     return progress.some((prog) => prog.lectureId === lectureId && prog.viewed);
   };
+
+  // Initialize the first uncompleted lecture, or first lecture if all completed
+  const getInitialLecture = () => {
+    if (currentLecture) return currentLecture;
+    
+    if (!courseDetails.lectures || courseDetails.lectures.length === 0) {
+      return null;
+    }
+
+    // Find the first lecture that is NOT marked as viewed
+    const firstUncompleted = courseDetails.lectures.find(
+      (lec) => !isLectureCompleted(lec._id)
+    );
+
+    // If all are completed, return the first one
+    return firstUncompleted || courseDetails.lectures[0];
+  };
+
+  const initialLecture = getInitialLecture();
 
   const handleLectureProgress = async (lectureId) => {
     await updateLectureProgress({ courseId, lectureId });
@@ -66,7 +83,8 @@ const CourseProgress = () => {
   // Handle select a specific lecture to watch
   const handleSelectLecture = (lecture) => {
     setCurrentLecture(lecture);
-    handleLectureProgress(lecture._id);
+    // REMOVED: handleLectureProgress(lecture._id);
+    // Progress should only be marked when video finishes, not on click
   };
 
 
@@ -100,27 +118,41 @@ const CourseProgress = () => {
         {/* Video section  */}
         <div className="flex-1 md:w-3/5 h-fit rounded-lg shadow-lg p-4">
           <div>
-            <video
-              src={currentLecture?.videoUrl || initialLecture.videoUrl}
-              controls
-              className="w-full h-auto md:rounded-lg"
-              onPlay={() =>
-                handleLectureProgress(currentLecture?._id || initialLecture._id)
-              }
-            />
+            {currentLecture?.videoUrl || initialLecture?.videoUrl ? (
+              <video
+                src={currentLecture?.videoUrl || initialLecture?.videoUrl}
+                controls
+                className="w-full h-auto md:rounded-lg"
+                onEnded={() => {
+                  const lectureId =
+                    currentLecture?._id || initialLecture?._id;
+                  if (lectureId) {
+                    handleLectureProgress(lectureId);
+                  }
+                }}
+              />
+            ) : (
+              <div className="flex items-center justify-center h-64 bg-gray-100 rounded-lg">
+                <p className="text-gray-500">No video available</p>
+              </div>
+            )}
           </div>
           {/* Display current watching lecture title */}
           <div className="mt-2 ">
-            <h3 className="font-medium text-lg">
-              {`Lecture ${
-                courseDetails.lectures.findIndex(
-                  (lec) =>
-                    lec._id === (currentLecture?._id || initialLecture._id)
-                ) + 1
-              } : ${
-                currentLecture?.lectureTitle || initialLecture.lectureTitle
-              }`}
-            </h3>
+            {currentLecture || initialLecture ? (
+              <h3 className="font-medium text-lg">
+                {`Lecture ${
+                  courseDetails.lectures.findIndex(
+                    (lec) =>
+                      lec._id === (currentLecture?._id || initialLecture?._id)
+                  ) + 1
+                } : ${
+                  currentLecture?.lectureTitle || initialLecture?.lectureTitle
+                }`}
+              </h3>
+            ) : (
+              <h3 className="font-medium text-lg">No lecture available</h3>
+            )}
           </div>
         </div>
         {/* Lecture Sidebar  */}

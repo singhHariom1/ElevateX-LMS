@@ -3,6 +3,7 @@ import { Course } from "../models/course.model.js";
 import { CoursePurchase } from "../models/coursePurchase.model.js";
 import { Lecture } from "../models/lecture.model.js";
 import { User } from "../models/user.model.js";
+import mongoose from "mongoose";
 
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY);
 const FRONTEND_URL = process.env.FRONTEND_URL || "http://localhost:5173";
@@ -12,8 +13,53 @@ export const createCheckoutSession = async (req, res) => {
     const userId = req.id;
     const { courseId } = req.body;
 
+    if (!courseId) {
+      return res.status(400).json({
+        success: false,
+        message: "Course ID is required",
+      });
+    }
+
+    // Validate ObjectId format
+    if (
+      !mongoose.Types.ObjectId.isValid(courseId) ||
+      !mongoose.Types.ObjectId.isValid(userId)
+    ) {
+      return res.status(400).json({
+        success: false,
+        message: "Invalid course or user ID format",
+      });
+    }
+
     const course = await Course.findById(courseId);
-    if (!course) return res.status(404).json({ message: "Course not found!" });
+    if (!course) {
+      return res.status(404).json({
+        success: false,
+        message: "Course not found!",
+      });
+    }
+
+    // Check if user already purchased this course
+    const existingPurchase = await CoursePurchase.findOne({
+      userId,
+      courseId,
+      status: "completed",
+    });
+
+    if (existingPurchase) {
+      return res.status(400).json({
+        success: false,
+        message: "Course already purchased",
+      });
+    }
+
+    // Validate course price
+    if (!course.coursePrice || course.coursePrice <= 0) {
+      return res.status(400).json({
+        success: false,
+        message: "Course price is invalid or not set",
+      });
+    }
 
     // Create a new course purchase record
     const newPurchase = new CoursePurchase({
@@ -41,7 +87,7 @@ export const createCheckoutSession = async (req, res) => {
       ],
       mode: "payment",
       success_url: `${FRONTEND_URL}/course-progress/${courseId}`, // Use FRONTEND_URL env var
-      cancel_url: `${FRONTEND_URL}/course-detail/${courseId}`,    // Use FRONTEND_URL env var
+      cancel_url: `${FRONTEND_URL}/course-detail/${courseId}`, // Use FRONTEND_URL env var
       metadata: {
         courseId: courseId,
         userId: userId,
@@ -66,7 +112,12 @@ export const createCheckoutSession = async (req, res) => {
       url: session.url, // Return the Stripe checkout URL
     });
   } catch (error) {
-    console.log(error);
+    console.error("Error creating checkout session:", error);
+    return res.status(500).json({
+      success: false,
+      message: "Failed to create checkout session",
+      error: error.message,
+    });
   }
 };
 
@@ -74,10 +125,13 @@ export const stripeWebhook = async (req, res) => {
   let event;
 
   try {
-    const sig = req.headers['stripe-signature'];
+    const sig = req.headers["stripe-signature"];
     const secret = process.env.STRIPE_WEBHOOK_SECRET;
 
-    console.log("Webhook received with signature:", sig ? "Present" : "Missing");
+    console.log(
+      "Webhook received with signature:",
+      sig ? "Present" : "Missing"
+    );
     console.log("Webhook secret:", secret ? "Present" : "Missing");
 
     if (!sig || !secret) {
@@ -121,17 +175,9 @@ export const stripeWebhook = async (req, res) => {
       purchase.status = "completed";
       console.log("Setting status to completed");
 
-      // Make all lectures visible by setting `isPreviewFree` to true
-      if (purchase.courseId && purchase.courseId.lectures.length > 0) {
-        console.log("Updating lectures to be visible");
-        await Lecture.updateMany(
-          { _id: { $in: purchase.courseId.lectures } },
-          { $set: { isPreviewFree: true } }
-        );
-        console.log("Updated lectures to be visible");
-      } else {
-        console.log("No lectures to update");
-      }
+      // NOTE: We do NOT modify lecture.isPreviewFree here.
+      // Access control is handled by checking if user is in enrolledStudents.
+      // Setting isPreviewFree to true would make lectures free for everyone!
 
       await purchase.save();
       console.log("Updated purchase status to completed");
@@ -154,10 +200,14 @@ export const stripeWebhook = async (req, res) => {
       );
       console.log("Updated course's enrolled students");
 
-      return res.status(200).json({ message: "Webhook processed successfully" });
+      return res
+        .status(200)
+        .json({ message: "Webhook processed successfully" });
     } catch (error) {
       console.error("Error processing webhook:", error);
-      return res.status(500).json({ message: "Internal Server Error", error: error.message });
+      return res
+        .status(500)
+        .json({ message: "Internal Server Error", error: error.message });
     }
   } else {
     console.log("Ignoring event type:", event.type);
@@ -172,27 +222,46 @@ export const getCourseDetailWithPurchaseStatus = async (req, res) => {
     const { courseId } = req.params;
     const userId = req.id;
 
+    // Validate ObjectId format
+    if (
+      !mongoose.Types.ObjectId.isValid(courseId) ||
+      !mongoose.Types.ObjectId.isValid(userId)
+    ) {
+      return res.status(400).json({
+        success: false,
+        message: "Invalid course or user ID format",
+      });
+    }
+
     const course = await Course.findById(courseId)
       .populate({ path: "creator" })
       .populate({ path: "lectures" });
 
     const purchased = await CoursePurchase.findOne({
-      userId,
-      courseId,
-      status: "completed" // Only consider completed purchases
+      userId: new mongoose.Types.ObjectId(userId),
+      courseId: new mongoose.Types.ObjectId(courseId),
+      status: "completed", // Only consider completed purchases
     });
-    console.log(purchased);
 
     if (!course) {
-      return res.status(404).json({ message: "course not found!" });
+      return res.status(404).json({
+        success: false,
+        message: "Course not found!",
+      });
     }
 
     return res.status(200).json({
+      success: true,
       course,
       purchased: !!purchased, // true if purchased, false otherwise
     });
   } catch (error) {
-    console.log(error);
+    console.error("Error getting course detail with purchase status:", error);
+    return res.status(500).json({
+      success: false,
+      message: "Failed to get course detail",
+      error: error.message,
+    });
   }
 };
 
@@ -215,7 +284,7 @@ export const getAllPurchasedCourse = async (req, res) => {
     return res.status(500).json({
       success: false,
       message: "Failed to fetch purchased courses",
-      error: error.message
+      error: error.message,
     });
   }
 };
@@ -227,13 +296,13 @@ export const fixCoursePurchaseStatus = async (req, res) => {
     // Find all pending purchases for this user
     const pendingPurchases = await CoursePurchase.find({
       userId,
-      status: "pending"
+      status: "pending",
     }).populate("courseId");
 
     if (!pendingPurchases || pendingPurchases.length === 0) {
       return res.status(200).json({
         success: true,
-        message: "No pending purchases found to fix"
+        message: "No pending purchases found to fix",
       });
     }
 
@@ -245,13 +314,8 @@ export const fixCoursePurchaseStatus = async (req, res) => {
       purchase.status = "completed";
       await purchase.save();
 
-      // Make all lectures visible
-      if (purchase.courseId && purchase.courseId.lectures.length > 0) {
-        await Lecture.updateMany(
-          { _id: { $in: purchase.courseId.lectures } },
-          { $set: { isPreviewFree: true } }
-        );
-      }
+      // NOTE: We do NOT modify lecture.isPreviewFree here.
+      // Access control is handled by checking if user is in enrolledStudents.
 
       // Update user's enrolledCourses
       await User.findByIdAndUpdate(
@@ -273,14 +337,14 @@ export const fixCoursePurchaseStatus = async (req, res) => {
     return res.status(200).json({
       success: true,
       message: `Fixed ${fixedCount} pending purchases`,
-      fixedPurchases: fixedCount
+      fixedPurchases: fixedCount,
     });
   } catch (error) {
     console.error("Error fixing course purchase status:", error);
     return res.status(500).json({
       success: false,
       message: "Failed to fix course purchase status",
-      error: error.message
+      error: error.message,
     });
   }
 };
@@ -291,29 +355,35 @@ export const getInstructorSales = async (req, res) => {
 
     // Find all courses created by this instructor
     const instructorCourses = await Course.find({ creator: instructorId });
-    const courseIds = instructorCourses.map(course => course._id);
+    const courseIds = instructorCourses.map((course) => course._id);
 
     // Find all completed purchases for these courses
     const purchasedCourses = await CoursePurchase.find({
       courseId: { $in: courseIds },
-      status: "completed"
+      status: "completed",
     }).populate("courseId");
 
     // Calculate total sales and revenue
     const totalSales = purchasedCourses.length;
-    const totalRevenue = purchasedCourses.reduce((acc, purchase) => acc + (purchase.amount || 0), 0);
+    const totalRevenue = purchasedCourses.reduce(
+      (acc, purchase) => acc + (purchase.amount || 0),
+      0
+    );
 
     // Group sales by course
-    const courseSales = instructorCourses.map(course => {
-      const coursePurchases = purchasedCourses.filter(purchase =>
-        purchase.courseId._id.toString() === course._id.toString()
+    const courseSales = instructorCourses.map((course) => {
+      const coursePurchases = purchasedCourses.filter(
+        (purchase) => purchase.courseId._id.toString() === course._id.toString()
       );
 
       return {
         name: course.courseTitle,
         price: course.coursePrice,
         sales: coursePurchases.length,
-        revenue: coursePurchases.reduce((acc, purchase) => acc + (purchase.amount || 0), 0)
+        revenue: coursePurchases.reduce(
+          (acc, purchase) => acc + (purchase.amount || 0),
+          0
+        ),
       };
     });
 
@@ -321,14 +391,14 @@ export const getInstructorSales = async (req, res) => {
       success: true,
       totalSales,
       totalRevenue,
-      courseSales
+      courseSales,
     });
   } catch (error) {
     console.error("Error fetching instructor sales:", error);
     return res.status(500).json({
       success: false,
       message: "Failed to fetch instructor sales",
-      error: error.message
+      error: error.message,
     });
   }
 };
