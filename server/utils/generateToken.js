@@ -1,7 +1,7 @@
 import jwt from "jsonwebtoken";
 
 export const generateToken = (res, user, message) => {
-  const secretKey = process.env.JWT_SECRET || process.env.SECRET_KEY;
+  const secretKey = process.env.JWT_SECRET_KEY;
   if (!secretKey) {
     throw new Error("JWT_SECRET is not defined in environment variables");
   }
@@ -13,7 +13,7 @@ export const generateToken = (res, user, message) => {
   const isProduction = process.env.NODE_ENV === "production";
   const isHTTPS = process.env.FRONTEND_URL?.startsWith("https://");
 
-  // Cookie settings: 
+  // Cookie settings:
   // - In production/HTTPS: use secure cookies with sameSite: "none" for cross-origin
   // - In development/HTTP: use sameSite: "lax" and secure: false for localhost
   const cookieOptions = {

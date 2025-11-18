@@ -16,7 +16,7 @@ connectDB();
 const app = express();
 
 const PORT = process.env.PORT || 3000;
-const CORS_ORIGIN = process.env.CORS_ORIGIN || "http://localhost:5173";
+const CORS_ORIGIN = process.env.CORS_ORIGIN;
 
 // Stripe webhook needs raw body, so it must come before other middleware
 app.use("/api/v1/purchase/webhook", express.raw({ type: "application/json" }));
@@ -25,10 +25,12 @@ app.use("/api/v1/purchase/webhook", express.raw({ type: "application/json" }));
 app.use(express.json());
 app.use(cookieParser());
 
-app.use(cors({
+app.use(
+  cors({
     origin: CORS_ORIGIN,
-    credentials: true
-}));
+    credentials: true,
+  })
+);
 
 // apis
 app.use("/api/v1/media", mediaRoute);
@@ -37,9 +39,24 @@ app.use("/api/v1/course", courseRoute);
 app.use("/api/v1/purchase", purchaseRoute);
 app.use("/api/v1/progress", courseProgressRoute);
 
+// 404 handler for undefined routes
+app.use("*", (req, res) => {
+  res.status(404).json({
+    success: false,
+    message: `Route ${req.originalUrl} not found`,
+  });
+});
 
-app.listen(PORT, '0.0.0.0', () => {
-    console.log(`Server listen at port ${PORT}`);
-})
+// Global error handler middleware
+app.use((err, req, res, next) => {
+  console.error("Global error handler:", err);
+  res.status(err.status || 500).json({
+    success: false,
+    message: err.message || "Internal server error",
+    ...(process.env.NODE_ENV === "development" && { stack: err.stack }),
+  });
+});
 
-
+app.listen(PORT, "0.0.0.0", () => {
+  console.log(`Server listen at port ${PORT}`);
+});

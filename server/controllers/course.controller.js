@@ -12,7 +12,16 @@ export const createCourse = async (req, res) => {
     const { courseTitle, category } = req.body;
     if (!courseTitle || !category) {
       return res.status(400).json({
+        success: false,
         message: "Course title and category is required.",
+      });
+    }
+
+    // Validate course title length
+    if (courseTitle.trim().length < 3 || courseTitle.trim().length > 100) {
+      return res.status(400).json({
+        success: false,
+        message: "Course title must be between 3 and 100 characters.",
       });
     }
 
@@ -134,6 +143,14 @@ export const editCourse = async (req, res) => {
       coursePrice,
     } = req.body;
     const thumbnail = req.file;
+
+    // Validate course price if provided
+    if (coursePrice !== undefined && (isNaN(coursePrice) || coursePrice < 0)) {
+      return res.status(400).json({
+        success: false,
+        message: "Course price must be a positive number.",
+      });
+    }
 
     // Validate ObjectId format
     if (!mongoose.Types.ObjectId.isValid(courseId)) {

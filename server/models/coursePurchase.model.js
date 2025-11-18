@@ -21,7 +21,8 @@ const coursePurchaseSchema = new mongoose.Schema({
     },
     paymentId:{
         type:String,
-        required:true
+        required:true,
+        unique:true
     }
 
 },{timestamps:true});

@@ -15,6 +15,23 @@ export const register = async (req, res) => {
       });
     }
 
+    // Validate email format
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(email)) {
+      return res.status(400).json({
+        success: false,
+        message: "Invalid email format.",
+      });
+    }
+
+    // Validate name length
+    if (name.trim().length < 2 || name.trim().length > 50) {
+      return res.status(400).json({
+        success: false,
+        message: "Name must be between 2 and 50 characters.",
+      });
+    }
+
     // Add password validation
     const passwordRegex = /^(?=.*[A-Za-z])(?=.*\d)[A-Za-z\d]{8,}$/;
     if (!passwordRegex.test(password)) {
